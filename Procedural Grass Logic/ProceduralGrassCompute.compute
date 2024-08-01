@@ -1,0 +1,60 @@
+#pragma kernel GrassMain
+
+struct GrassData
+{
+    float4 position;
+    float2 uv;
+};
+
+RWStructuredBuffer<GrassData> _GrassBuffer;
+
+int _Resolution;
+int _Scale;
+
+#define PI 3.14159265358979323846
+
+float hash2 (float2 uv)
+{
+    return frac(sin(7.289 * uv.x + 11.23 * uv.y) * 23158.5453123);
+}
+
+float randomBetween (float2 uv, float lowerVal, float higherVal)
+{
+    float rand = hash2(uv);
+    float difference = abs(higherVal - lowerVal);
+
+    return (rand * difference) + lowerVal;
+}
+
+float2 GetUV (uint3 id) 
+{
+    return (id.xy - float(_Resolution) * 0.5) * (1.0f / _Scale);
+}
+
+[numthreads(8,8,1)]
+void GrassMain (uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = GetUV(id);
+
+    if (id.x < uint(_Resolution) && id.y < uint(_Resolution)) 
+    {
+        GrassData grass;
+        float4 pos;
+
+        pos.x = uv.x * 2.0f;
+        pos.x += randomBetween(float2(uv.x, uv.y), -1.0f, 1.0f);
+
+        pos.z = uv.y * 2.0f;
+        pos.z += randomBetween(float2(uv.y, uv.x), -1.0f, 1.0f);
+
+        pos.y = 0.0f;
+
+        float noise = hash2(uv);
+        pos.w = lerp(0.3f, 0.6f, noise);
+
+        grass.position = pos;
+        grass.uv = uv;
+
+        _GrassBuffer[id.x + id.y * _Resolution] = grass;
+    }
+}
